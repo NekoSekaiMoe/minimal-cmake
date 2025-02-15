@@ -19,6 +19,10 @@ jobs:
         sudo apt-get install gcc cpio xz-utils gawk syslinux make grep qemu-utils sed util-linux wget binutils libelf-dev libssl-dev bc flex bison rsync automake -y
     #--------------------------------------------build--------------------------------------------
     
+    - name: ccache
+      uses: hendrikmuhs/ccache-action@v1.2
+      with:
+        create-symlink: true
     - name: Autogen
       run: |
         sudo make -f Makefile.devel dist
@@ -29,3 +33,7 @@ jobs:
     - name: Build
       run: |
         make all -j$(nproc)
+    - name: Upload
+      uses: actions/upload-artifact@v4
+      with:
+        path: disk.img
