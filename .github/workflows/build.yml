@@ -20,16 +20,17 @@ jobs:
         sudo apt-get install binutils libelf-dev libssl-dev bc flex bison rsync -y
     #--------------------------------------------build--------------------------------------------
     
-    - name: Build binary distribution
+    - name: Autogen
+      run: |
+        aclocal
+        autoheader -v
+        libtoolize --automake --copy --force
+        autoconf -v
+        automake --add-missing --force-missing --copy --foreign 
+        
+    - name: configure
       run: |
         ./configure
-        make all -j$(nproc)
-    
-    - name: Make packages
+    - name: Build
       run: |
-        sha256sum disk.img.xz > disk.img.xz.sha256
-        sha256sum rootfs.tar.xz > rootfs.tar.xz.sha256
-        sha256sum vmlinuz.xz > vmlinuz.xz.sha256
-    
-    #--------------------------------------------publish--------------------------------------------
-
+        make all -j$(nproc)
