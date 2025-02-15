@@ -4,39 +4,6 @@ on:
   push:
 
 jobs:
-
-  build-dist:
-
-    runs-on: ubuntu-latest
-
-    steps:
-
-    #--------------------------------------------collect--------------------------------------------
-    - uses: actions/checkout@v4
-    
-    - name: Get infomations
-      run: |
-        tag="${GITHUB_REF#refs/tags/}"
-        echo "tag=$tag" >> $GITHUB_ENV
-        echo "pkgname=mlinux-minimal-$tag" >> $GITHUB_ENV
-        echo "srcdir=$(pwd)" >> $GITHUB_ENV
-
-    - name: Collect dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install autoconf automake -y
-
-    #--------------------------------------------build--------------------------------------------
-    - name: Build tarball
-      run: |
-        sudo make -f Makefile.devel dist VERSION=${{ env.tag }}
-    
-    - name: Sum md5
-      run: |
-        sudo sha256sum ${{ env.pkgname }}.tar.xz > ${{ env.pkgname }}.tar.xz.sha256
-    
-    #--------------------------------------------publish--------------------------------------------
-
   build-binary:
   
     needs: build-dist
@@ -47,24 +14,12 @@ jobs:
     
     #--------------------------------------------collect--------------------------------------------
     - name: Get infomations
-      run: |
-        tag="${GITHUB_REF#refs/tags/}"
-        echo "tag=$tag" >> $GITHUB_ENV
-        echo "pkgname=mlinux-minimal-$tag" >> $GITHUB_ENV
-        echo "srcdir=$(pwd)" >> $GITHUB_ENV
-
+      run: actions/checkout@v4
     - name: Collect dependencies
       run: |
         sudo apt-get update
         sudo apt-get install gcc cpio xz-utils gawk syslinux make grep qemu-utils sed util-linux wget -y
         sudo apt-get install binutils libelf-dev libssl-dev bc flex bison rsync -y
-
-    - name: Get source distribution tarball
-      run: |
-        wget https://github.com/${{ github.repository }}/releases/download/${{ env.tag }}/${{ env.pkgname }}.tar.xz
-        tar xvf ${{ env.pkgname }}.tar.xz
-        mv ${{ env.pkgname }}/* .
-    
     #--------------------------------------------build--------------------------------------------
     
     - name: Build binary distribution
