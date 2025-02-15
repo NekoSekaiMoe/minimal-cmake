@@ -23,6 +23,8 @@ jobs:
       uses: hendrikmuhs/ccache-action@v1.2
       with:
         create-symlink: true
+        key: max-size
+        max-size: 996M
     - name: Autogen
       run: |
         sudo make -f Makefile.devel dist
