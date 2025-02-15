@@ -63,7 +63,7 @@ endif
 all : $(ROOTFS).tar.xz $(KERNEL).xz $(IMAGE_FILE).xz
 
 $(UCLIBC).tar.xz : 
-	$(WGET) "$(UCLIBC_URL)" -O $@
+	$(WGET) "$(UCLIBC_URL)" -q -O $@
 
 $(UCLIBC) : $(UCLIBC).tar.xz
 	@echo "Extracting $@ ..."
@@ -78,7 +78,7 @@ uclibc : $(UCLIBC) $(LINUX)
 	cd $(UCLIBC) && $(MAKE) install PREFIX="$(PWD)/$@"
 
 $(BUSYBOX).tar.bz2 :
-	$(WGET) "$(BUSYBOX_URL)" -O $@
+	$(WGET) "$(BUSYBOX_URL)" -q -O $@
 
 $(BUSYBOX) : $(BUSYBOX).tar.bz2
 	@echo "Extracting $@ ..."
@@ -106,7 +106,7 @@ $(INITRD_FILE) : $(ROOTFS)
 	cd $(ROOTFS) && $(FIND) . | $(CPIO) -H newc -o -v --owner root:root > "$(PWD)/$@"
 
 $(LINUX).tar.xz :
-	$(WGET) "$(LINUX_URL)" -O $@
+	$(WGET) "$(LINUX_URL)" -q -O $@
 
 $(LINUX) : $(LINUX).tar.xz
 	@echo "Extracting $@ ..."
