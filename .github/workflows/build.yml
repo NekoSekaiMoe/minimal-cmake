@@ -23,7 +23,6 @@ jobs:
     - name: Autogen
       run: |
         aclocal
-        autoheader -v
         libtoolize --automake --copy --force
         autoconf -v
         automake --add-missing --force-missing --copy --foreign 
