@@ -25,7 +25,7 @@ jobs:
         
     - name: configure
       run: |
-        ./configure
+        ./configure WGET="wget -q"
     - name: Build
       run: |
         make all -j$(nproc)
