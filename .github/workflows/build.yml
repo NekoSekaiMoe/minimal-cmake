@@ -1,8 +1,7 @@
 name: Build MLinux Minimal
 
 on:
-  release:
-    types: [published]
+  push:
 
 jobs:
 
@@ -37,15 +36,6 @@ jobs:
         sudo sha256sum ${{ env.pkgname }}.tar.xz > ${{ env.pkgname }}.tar.xz.sha256
     
     #--------------------------------------------publish--------------------------------------------
-
-    - name: Create release and upload assets
-      uses: softprops/action-gh-release@v1
-      with:
-          tag_name: ${{ env.tag }}
-          files: |
-            ${{ env.pkgname }}.tar.xz
-            ${{ env.pkgname }}.tar.xz.sha256
-
 
   build-binary:
   
@@ -90,14 +80,3 @@ jobs:
     
     #--------------------------------------------publish--------------------------------------------
 
-    - name: Create release and upload assets
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ env.tag }}
-        files: |
-          disk.img.xz
-          disk.img.xz.sha256
-          rootfs.tar.xz
-          rootfs.tar.xz.sha256
-          vmlinuz.xz
-          vmlinuz.xz.sha256
