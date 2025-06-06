@@ -155,16 +155,42 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+# BusyBox preparation and build
 add_custom_command(
-    OUTPUT ${BUSYBOX}
+    OUTPUT ${CMAKE_BINARY_DIR}/${BUSYBOX}
+    # Extract BusyBox
     COMMAND ${TAR} -xf ${BUSYBOX}.tar.bz2
-    COMMAND ${CP} -f ${CMAKE_SOURCE_DIR}/bb-patches/init.c "${BUSYBOX}/init/init.c"
-    COMMAND ${PATCH} -p1 "${BUSYBOX}/shell/hush.c" < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
-    COMMAND ${PATCH} -p1 "${BUSYBOX}/shell/match.c" < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
-    COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG} "${BUSYBOX}/.config"
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && make all CC="${UCLIBC_CC}" >log.txt 2>&1
-    DEPENDS ${BUSYBOX}.tar.bz2 ${CMAKE_BINARY_DIR}/uclibc
+    
+    # Apply patches and config
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+        "${CMAKE_SOURCE_DIR}/bb-patches/init.c" 
+        "${CMAKE_BINARY_DIR}/${BUSYBOX}/init/init.c"
+    
+    COMMAND ${PATCH} -p1 -i "${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch"
+        "${CMAKE_BINARY_DIR}/${BUSYBOX}/shell/hush.c"
+    
+    COMMAND ${PATCH} -p1 -i "${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch"
+        "${CMAKE_BINARY_DIR}/${BUSYBOX}/shell/match.c"
+    
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
+        "${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG}" 
+        "${CMAKE_BINARY_DIR}/${BUSYBOX}/.config"
+    
+    # Build BusyBox (using properly escaped CC)
+    COMMAND ${CMAKE_COMMAND} -E env 
+        "CC=${CC} -specs '${CMAKE_BINARY_DIR}/uclibc.specs' -fno-stack-protector"
+        make -C "${CMAKE_BINARY_DIR}/${BUSYBOX}" all > "${CMAKE_BINARY_DIR}/busybox_build.log" 2>&1
+    
+    DEPENDS 
+        ${CMAKE_BINARY_DIR}/${BUSYBOX}.tar.bz2
+        ${CMAKE_SOURCE_DIR}/bb-patches/init.c
+        ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
+        ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
+        ${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG}
+        ${CMAKE_BINARY_DIR}/uclibc.specs
+    
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Building BusyBox"
 )
 
 # Rootfs and initrd creation
