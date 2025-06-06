@@ -2,6 +2,7 @@ name: Build MLinux Minimal
 
 on:
   push:
+  workflow_dispatch:
 
 jobs:
   build-binary:
