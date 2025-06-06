@@ -140,9 +140,9 @@ add_custom_command(
     COMMAND ${SED} -i "'s|114514|${CMAKE_BINARY_DIR}/uclibc/include|g'" "${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG}"
     COMMAND ${CP} -f ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
     # Fix: Changed ninja to make since we're building uClibc
-    COMMAND cd ${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
-    COMMAND cd ${UCLIBC} && make all >log.txt 2>&1
-    COMMAND cd ${UCLIBC} && make install PREFIX="${CMAKE_BINARY_DIR}/uclibc" >log.txt 2>&1
+    COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
+    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make all >log.txt 2>&1
+    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make install PREFIX="${CMAKE_BINARY_DIR}/uclibc" >log.txt 2>&1
     DEPENDS ${UCLIBC} ${LINUX}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building uClibc"
@@ -162,7 +162,7 @@ add_custom_command(
     COMMAND ${PATCH} -p1 "${BUSYBOX}/shell/hush.c" < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
     COMMAND ${PATCH} -p1 "${BUSYBOX}/shell/match.c" < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
     COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG} "${BUSYBOX}/.config"
-    COMMAND cd ${BUSYBOX} && make all CC="${UCLIBC_CC}" >log.txt 2>&1
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && make all CC="${UCLIBC_CC}" >log.txt 2>&1
     DEPENDS ${BUSYBOX}.tar.bz2 ${CMAKE_BINARY_DIR}/uclibc
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
@@ -171,8 +171,8 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${ROOTFS}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
-    COMMAND cd ${BUSYBOX} && make install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}" >log.txt 2>&1
-    COMMAND cd ${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && make install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}" >log.txt 2>&1
+    COMMAND cd ${CMAKE_BINARY_DIR}/${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
     DEPENDS ${BUSYBOX}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
@@ -188,7 +188,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${KERNEL} ${KERNEL}.xz
     COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG} "${LINUX}/.config"
-    COMMAND cd ${LINUX} && make all CC="${UCLIBC_CC}" >log.txt 2>&1
+    COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && make all CC="${UCLIBC_CC}" >log.txt 2>&1
     COMMAND ${CP} ${KERNEL_IMAGE} ${KERNEL}
     COMMAND ${CHMOD} +x ${KERNEL}
     COMMAND ${XZ} -z -c -9 ${KERNEL} > ${KERNEL}.xz
