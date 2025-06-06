@@ -137,7 +137,7 @@ add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/uclibc
     COMMAND ${CMAKE_COMMAND} -E make_directory uclibc
     # Fix: Added destination path for config file copy
-    COMMAND ${SED} -i "s|114514|${CMAKE_BINARY_DIR}/uclibc/include|g" "${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG}"
+    COMMAND ${SED} -i "'s|114514|${CMAKE_BINARY_DIR}/uclibc/include|g'" "${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG}"
     COMMAND ${CP} -f ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
     # Fix: Changed ninja to make since we're building uClibc
     COMMAND cd ${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
