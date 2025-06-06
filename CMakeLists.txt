@@ -102,6 +102,7 @@ set(KERNEL "vmlinuz")
 set(LINUX_CONFIG "linux.${ARCH}.config")
 set(ROOTFS "rootfs")
 set(SYSLINUX_CFG "syslinux.config")
+set(UCLIBC_CONFIG "uclibc.${ARCH}.config")
 
 # Linux kernel source preparation
 add_custom_command(
@@ -136,12 +137,12 @@ add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/uclibc
     COMMAND ${CMAKE_COMMAND} -E make_directory uclibc
     # Fix: Added destination path for config file copy
-    COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
+    COMMAND ${CP} -f ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
     # Fix: Changed ninja to make since we're building uClibc
-    COMMAND cd ${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
+    COMMAND cd ${LINUX} && CC=false ${CMAKE_MAKE_PROGRAM} ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
     COMMAND ${SED} -i "s|@KERNEL_HEADERS@|${CMAKE_BINARY_DIR}/uclibc/include|g" "${UCLIBC}/.config"
-    COMMAND cd ${UCLIBC} && make all
-    COMMAND cd ${UCLIBC} && make install PREFIX="${CMAKE_BINARY_DIR}/uclibc"
+    COMMAND cd ${UCLIBC} && ${CMAKE_MAKE_PROGRAM} all
+    COMMAND cd ${UCLIBC} && ${CMAKE_MAKE_PROGRAM} install PREFIX="${CMAKE_BINARY_DIR}/uclibc"
     DEPENDS ${UCLIBC} ${LINUX}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building uClibc"

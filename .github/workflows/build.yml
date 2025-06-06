@@ -17,7 +17,7 @@ jobs:
     - name: Collect dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install gcc cpio xz-utils gawk syslinux make grep qemu-utils sed util-linux wget binutils libelf-dev libssl-dev bc flex bison rsync automake -y
+        sudo apt-get install gcc cpio xz-utils gawk syslinux make grep qemu-utils sed util-linux ccache icecc distcc wget binutils libelf-dev libssl-dev bc flex bison rsync automake -y
     #--------------------------------------------build--------------------------------------------
     
     - name: ccache
