@@ -7,7 +7,7 @@
 # or (at your option) any later version.
 
 cmake_minimum_required(VERSION 3.15)
-project(MLinux VERSION 0.1)
+project(MLinux VERSION 0.1 LANGUAGES C)
 
 include(CMakeParseArguments)
 
@@ -177,7 +177,7 @@ add_custom_target(all
 )
 
 # Clean targets
-add_custom_target(clean
+add_custom_target(distclean
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${UCLIBC}
     COMMAND ${CMAKE_COMMAND} -E remove_directory uclibc
     COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUSYBOX}
