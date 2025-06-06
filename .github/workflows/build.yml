@@ -26,10 +26,6 @@ jobs:
         create-symlink: true
         key: max-size
         max-size: 996M
-    - name: Autogen
-      run: |
-        sudo make -f Makefile.devel dist
-        
     - name: configure
       run: |
         cmake . -GNinja
