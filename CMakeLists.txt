@@ -131,15 +131,20 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
+# uClibc preparation and build
 add_custom_command(
     OUTPUT ${CMAKE_BINARY_DIR}/uclibc
     COMMAND ${CMAKE_COMMAND} -E make_directory uclibc
-    COMMAND ${CP} ${UCLIBC_CONFIG} "${UCLIBC}/.config"
-    COMMAND cd ${LINUX} && CC=false ${CMAKE_MAKE_PROGRAM} ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
+    # Fix: Added destination path for config file copy
+    COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
+    # Fix: Changed ninja to make since we're building uClibc
+    COMMAND cd ${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
     COMMAND ${SED} -i "s|@KERNEL_HEADERS@|${CMAKE_BINARY_DIR}/uclibc/include|g" "${UCLIBC}/.config"
-    COMMAND cd ${UCLIBC} && ${CMAKE_MAKE_PROGRAM} all
-    COMMAND cd ${UCLIBC} && ${CMAKE_MAKE_PROGRAM} install PREFIX="${CMAKE_BINARY_DIR}/uclibc"
+    COMMAND cd ${UCLIBC} && make all
+    COMMAND cd ${UCLIBC} && make install PREFIX="${CMAKE_BINARY_DIR}/uclibc"
     DEPENDS ${UCLIBC} ${LINUX}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Building uClibc"
 )
 
 # BusyBox preparation and build
