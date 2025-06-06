@@ -139,16 +139,20 @@ add_custom_target(busybox
     DEPENDS ${BUSYBOX}.tar.bz2 uclibc
 )
 
+# Create rootfs directory and install busybox
 add_custom_target(rootfs
     COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
-    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} install CONFIG_PREFIX="${PWD}/${ROOTFS}" CC="${UCLIBC_CC}"
+    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}"
     COMMAND cd ${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
+    BYPRODUCTS ${ROOTFS}
     DEPENDS busybox
 )
 
+# Create initrd
 add_custom_target(initrd
-    COMMAND cd ${ROOTFS} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > "${PWD}/${INITRD_FILE}"
+    COMMAND cd ${ROOTFS} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > "${CMAKE_BINARY_DIR}/${INITRD_FILE}"
     DEPENDS rootfs
+    BYPRODUCTS ${INITRD_FILE}
 )
 
 add_custom_command(
@@ -180,13 +184,26 @@ add_custom_target(disk_image
     DEPENDS kernel
 )
 
+# Add command for creating rootfs.tar
+add_custom_command(
+    OUTPUT ${ROOTFS}.tar
+    COMMAND ${TAR} -c -v -f ${ROOTFS}.tar ${ROOTFS}
+    DEPENDS rootfs
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
+# Add command for creating rootfs.tar.xz
+add_custom_command(
+    OUTPUT ${ROOTFS}.tar.xz
+    COMMAND ${XZ} -z -c -9 ${ROOTFS}.tar > ${ROOTFS}.tar.xz
+    DEPENDS ${ROOTFS}.tar
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+)
+
 # Main target - change from "all" to "build_all"
 add_custom_target(build_all
     DEPENDS ${ROOTFS}.tar.xz ${KERNEL}.xz ${IMAGE_FILE}.xz
 )
-# Make it the default target
-set_property(TARGET build_all PROPERTY FOLDER "")
-set(CMAKE_DEFAULT_TARGET build_all)
 
 # Clean targets
 add_custom_target(distclean
