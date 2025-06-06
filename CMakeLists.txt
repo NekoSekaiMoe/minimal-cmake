@@ -193,14 +193,29 @@ add_custom_command(
     COMMENT "Building BusyBox"
 )
 
-# Rootfs and initrd creation
+# Create rootfs directory and install busybox
 add_custom_command(
-    OUTPUT ${ROOTFS}
+    OUTPUT ${CMAKE_BINARY_DIR}/${ROOTFS}
+    # Create rootfs directory
     COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && make install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}" >log.txt 2>&1
-    COMMAND cd ${CMAKE_BINARY_DIR}/${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
-    DEPENDS ${BUSYBOX}
+    
+    # Install busybox with proper CC environment
+    COMMAND ${CMAKE_COMMAND} -E env 
+        "CC=${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
+        make -C "${CMAKE_BINARY_DIR}/${BUSYBOX}" 
+        install 
+        "CONFIG_PREFIX=${CMAKE_BINARY_DIR}/${ROOTFS}"
+        > "${CMAKE_BINARY_DIR}/rootfs_install.log" 2>&1
+    
+    # Create necessary directories
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/${ROOTFS}/dev"
+    
+    DEPENDS
+        ${CMAKE_BINARY_DIR}/${BUSYBOX}
+        ${CMAKE_BINARY_DIR}/uclibc.specs
+    
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Creating root filesystem"
 )
 
 add_custom_command(
