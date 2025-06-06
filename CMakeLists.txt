@@ -66,6 +66,22 @@ set(UCLIBC_MIRROR_CUSTOME "" CACHE STRING "Custom µClibc mirror URL")
 # Architecture and configuration
 set(ARCH "x86_64" CACHE STRING "Target architecture")
 set(IMAGE_SIZE "6.1M" CACHE STRING "Disk image size")
+set(LINUX "linux-${LINUX_VERSION}")
+set(KERNEL_IMAGE "${LINUX}/arch/${ARCH}/boot/bzImage")
+
+# Set compiler flags
+set(CC_FLAGS "-fno-stack-protector")
+set(UCLIBC_SPECS "${CMAKE_BINARY_DIR}/uclibc.specs")
+
+# Function to check file exists
+function(ensure_file file)
+    if(NOT EXISTS "${file}")
+        message(FATAL_ERROR "Required file not found: ${file}")
+    endif()
+endfunction()
+
+# Validate required files
+ensure_file("${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}")
 
 # Derived variables
 set(PWD ${CMAKE_CURRENT_SOURCE_DIR})
@@ -74,6 +90,15 @@ set(LINUX "linux-${LINUX_VERSION}")
 set(UCLIBC "uClibc-${UCLIBC_VERSION}")
 set(KERNEL_IMAGE "${LINUX}/arch/${ARCH}/boot/bzImage")
 set(UCLIBC_SYSROOT "${CMAKE_CURRENT_BINARY_DIR}/uclibc")
+set(BUSYBOX_CONFIG "busybox.${ARCH}.config")
+set(FS_DIR "fs")
+set(IMAGE_FILE "disk.img")
+set(INITRD_FILE "initrd.cpio")
+set(KERNEL "vmlinuz")
+set(LINUX_CONFIG "linux.${ARCH}.config")
+set(ROOTFS "rootfs")
+set(SYSLINUX_CFG "syslinux.config")
+set(UCLIBC_CONFIG "uclibc.${ARCH}.config")
 
 # Set UCLIBC_CC before use
 set(UCLIBC_CC "${CC} -specs \"${CMAKE_BINARY_DIR}/uclibc.specs\" -fno-stack-protector")
@@ -92,17 +117,6 @@ configure_file(
     ${CMAKE_CURRENT_BINARY_DIR}/uclibc.specs
     @ONLY
 )
-
-# Define basic file and directory paths
-set(BUSYBOX_CONFIG "busybox.${ARCH}.config")
-set(FS_DIR "fs")
-set(IMAGE_FILE "disk.img")
-set(INITRD_FILE "initrd.cpio")
-set(KERNEL "vmlinuz")
-set(LINUX_CONFIG "linux.${ARCH}.config")
-set(ROOTFS "rootfs")
-set(SYSLINUX_CFG "syslinux.config")
-set(UCLIBC_CONFIG "uclibc.${ARCH}.config")
 
 # Linux kernel source preparation
 add_custom_command(
@@ -225,16 +239,56 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-# Kernel build
+# Kernel build command
 add_custom_command(
-    OUTPUT ${KERNEL} ${KERNEL}.xz
-    COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG} "${LINUX}/.config"
-    COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && make all CC="${UCLIBC_CC}" >log.txt 2>&1
-    COMMAND ${CP} ${KERNEL_IMAGE} ${KERNEL}
-    COMMAND ${CHMOD} +x ${KERNEL}
-    COMMAND ${XZ} -z -c -9 ${KERNEL} > ${KERNEL}.xz
-    DEPENDS ${LINUX} ${INITRD_FILE}
+    OUTPUT 
+        ${CMAKE_BINARY_DIR}/vmlinuz 
+        ${CMAKE_BINARY_DIR}/vmlinuz.xz
+    
+    # Copy kernel config
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        "${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}"
+        "${CMAKE_BINARY_DIR}/${LINUX}/.config"
+    
+    # Build kernel with proper CC environment
+    COMMAND ${CMAKE_COMMAND} -E env 
+        "CC=${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
+        "ARCH=${ARCH}"
+        make -C "${CMAKE_BINARY_DIR}/${LINUX}"
+        all
+        > "${CMAKE_BINARY_DIR}/kernel_build.log" 2>&1
+    
+    # Copy and prepare kernel image
+    COMMAND ${CMAKE_COMMAND} -E copy
+        "${CMAKE_BINARY_DIR}/${LINUX}/arch/${ARCH}/boot/bzImage"
+        "${CMAKE_BINARY_DIR}/vmlinuz"
+    
+    # Set permissions
+    COMMAND ${CMAKE_COMMAND} -E chmod 755
+        "${CMAKE_BINARY_DIR}/vmlinuz"
+    
+    # Compress kernel
+    COMMAND ${XZ} -z -c -9 
+        "${CMAKE_BINARY_DIR}/vmlinuz" 
+        > "${CMAKE_BINARY_DIR}/vmlinuz.xz"
+    
+    DEPENDS
+        ${CMAKE_BINARY_DIR}/${LINUX}
+        ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}
+        ${CMAKE_BINARY_DIR}/uclibc.specs
+        ${CMAKE_BINARY_DIR}/${INITRD_FILE}  # Need initrd file before building kernel
+    
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Building Linux kernel"
+)
+
+# Add validation target for kernel build
+add_custom_target(validate_kernel
+    COMMAND ${CMAKE_COMMAND} -E echo "Validating kernel build..."
+    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not found" && exit 1)
+    COMMAND test -x "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not executable" && exit 1)
+    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz.xz" || (echo "vmlinuz.xz not found" && exit 1)
+    DEPENDS ${CMAKE_BINARY_DIR}/vmlinuz ${CMAKE_BINARY_DIR}/vmlinuz.xz
 )
 
 # Disk image creation
