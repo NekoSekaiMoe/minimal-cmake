@@ -32,10 +32,10 @@ jobs:
         
     - name: configure
       run: |
-        ./configure WGET="wget -q"
+        cmake . -GNinja
     - name: Build
       run: |
-        make all -j$(nproc)
+        ninja
     - name: Upload
       uses: actions/upload-artifact@v4
       with:

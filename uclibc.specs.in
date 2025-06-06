@@ -1,22 +1,22 @@
 %rename cpp_options old_cpp_options
 
 *cpp_options:
--nostdinc -isystem @UCLIBC_SYSROOT@/include -isystem include%s %(old_cpp_options)
+-nostdinc -isystem ${UCLIBC_SYSROOT}/include -isystem include%s %(old_cpp_options)
 
 *cc1:
-%(cc1_cpu) -nostdinc -isystem @UCLIBC_SYSROOT@/include -isystem include%s
+%(cc1_cpu) -nostdinc -isystem ${UCLIBC_SYSROOT}/include -isystem include%s
 
 *link_libgcc:
--L@UCLIBC_SYSROOT@/lib -L@UCLIBC_SYSROOT@/lib -L .%s
+-L${UCLIBC_SYSROOT}/lib -L${UCLIBC_SYSROOT}/lib -L .%s
 
 *libgcc:
 libgcc.a%s %:if-exists(libgcc_eh.a%s)
 
 *startfile:
-%{!shared: @UCLIBC_SYSROOT@/lib/Scrt1.o} @UCLIBC_SYSROOT@/lib/crti.o crtbeginS.o%s
+%{!shared: ${UCLIBC_SYSROOT}/lib/Scrt1.o} ${UCLIBC_SYSROOT}/lib/crti.o crtbeginS.o%s
 
 *endfile:
-crtendS.o%s @UCLIBC_SYSROOT@/lib/crtn.o
+crtendS.o%s ${UCLIBC_SYSROOT}/lib/crtn.o
 
 *link:
 -dynamic-linker /lib/ld-ulibc.so.0 -nostdlib %{shared:-shared} %{static:-static} %{rdynamic:-export-dynamic}
@@ -28,5 +28,3 @@ crtendS.o%s @UCLIBC_SYSROOT@/lib/crtn.o
 
 
 *esp_cpp_options:
-
-
