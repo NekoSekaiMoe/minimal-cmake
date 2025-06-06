@@ -9,6 +9,15 @@
 cmake_minimum_required(VERSION 3.15)
 project(MLinux VERSION 0.1 LANGUAGES C)
 
+find_program(CCACHE_FOUND ccache)
+if(CCACHE_FOUND)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
+    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
+    message(STATUS "Using ccache: ${CCACHE_FOUND}")
+else()
+    message(STATUS "Ccache not found. Compiling with cache will be disabled.")
+endif(CCACHE_FOUND)
+
 include(CMakeParseArguments)
 
 # Find required programs
@@ -171,10 +180,13 @@ add_custom_target(disk_image
     DEPENDS kernel
 )
 
-# Main target
-add_custom_target(all
+# Main target - change from "all" to "build_all"
+add_custom_target(build_all
     DEPENDS ${ROOTFS}.tar.xz ${KERNEL}.xz ${IMAGE_FILE}.xz
 )
+# Make it the default target
+set_property(TARGET build_all PROPERTY FOLDER "")
+set(CMAKE_DEFAULT_TARGET build_all)
 
 # Clean targets
 add_custom_target(distclean
