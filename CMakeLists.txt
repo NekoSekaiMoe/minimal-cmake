@@ -139,22 +139,6 @@ add_custom_target(busybox
     DEPENDS ${BUSYBOX}.tar.bz2 uclibc
 )
 
-# Create rootfs directory and install busybox
-add_custom_target(rootfs
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
-    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}"
-    COMMAND cd ${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
-    BYPRODUCTS ${ROOTFS}
-    DEPENDS busybox
-)
-
-# Create initrd
-add_custom_target(initrd
-    COMMAND cd ${ROOTFS} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > "${CMAKE_BINARY_DIR}/${INITRD_FILE}"
-    DEPENDS rootfs
-    BYPRODUCTS ${INITRD_FILE}
-)
-
 add_custom_command(
     OUTPUT ${LINUX}.tar.xz
     COMMAND ${WGET} "${LINUX_URL}" -q -O ${LINUX}.tar.xz
@@ -184,15 +168,31 @@ add_custom_target(disk_image
     DEPENDS kernel
 )
 
-# Add command for creating rootfs.tar
+# Create rootfs directory and install busybox
+add_custom_command(
+    OUTPUT ${ROOTFS}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
+    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}"
+    COMMAND cd ${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
+    DEPENDS busybox
+)
+
+# Create initrd file
+add_custom_command(
+    OUTPUT ${INITRD_FILE}
+    COMMAND cd ${ROOTFS} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > "${CMAKE_BINARY_DIR}/${INITRD_FILE}"
+    DEPENDS ${ROOTFS}
+)
+
+# Create rootfs.tar
 add_custom_command(
     OUTPUT ${ROOTFS}.tar
     COMMAND ${TAR} -c -v -f ${ROOTFS}.tar ${ROOTFS}
-    DEPENDS rootfs
+    DEPENDS ${ROOTFS}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-# Add command for creating rootfs.tar.xz
+# Create rootfs.tar.xz
 add_custom_command(
     OUTPUT ${ROOTFS}.tar.xz
     COMMAND ${XZ} -z -c -9 ${ROOTFS}.tar > ${ROOTFS}.tar.xz
@@ -200,8 +200,13 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-# Main target - change from "all" to "build_all"
-add_custom_target(build_all
+# Add phony targets for convenience
+add_custom_target(rootfs_target ALL DEPENDS ${ROOTFS})
+add_custom_target(initrd_target ALL DEPENDS ${INITRD_FILE})
+add_custom_target(rootfs_archive ALL DEPENDS ${ROOTFS}.tar.xz)
+
+# Main target
+add_custom_target(build_all ALL
     DEPENDS ${ROOTFS}.tar.xz ${KERNEL}.xz ${IMAGE_FILE}.xz
 )
 
