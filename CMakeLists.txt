@@ -139,10 +139,10 @@ add_custom_command(
     # Fix: Added destination path for config file copy
     COMMAND ${CP} -f ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
     # Fix: Changed ninja to make since we're building uClibc
-    COMMAND cd ${LINUX} && CC=false ${CMAKE_MAKE_PROGRAM} ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
+    COMMAND cd ${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
     COMMAND ${SED} -i "s|@KERNEL_HEADERS@|${CMAKE_BINARY_DIR}/uclibc/include|g" "${UCLIBC}/.config"
-    COMMAND cd ${UCLIBC} && ${CMAKE_MAKE_PROGRAM} all
-    COMMAND cd ${UCLIBC} && ${CMAKE_MAKE_PROGRAM} install PREFIX="${CMAKE_BINARY_DIR}/uclibc"
+    COMMAND cd ${UCLIBC} && make all
+    COMMAND cd ${UCLIBC} && make install PREFIX="${CMAKE_BINARY_DIR}/uclibc"
     DEPENDS ${UCLIBC} ${LINUX}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building uClibc"
@@ -162,7 +162,7 @@ add_custom_command(
     COMMAND ${PATCH} -p1 "${BUSYBOX}/shell/hush.c" < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
     COMMAND ${PATCH} -p1 "${BUSYBOX}/shell/match.c" < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
     COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG} "${BUSYBOX}/.config"
-    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} all CC="${UCLIBC_CC}"
+    COMMAND cd ${BUSYBOX} && make all CC="${UCLIBC_CC}"
     DEPENDS ${BUSYBOX}.tar.bz2 ${CMAKE_BINARY_DIR}/uclibc
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
@@ -171,7 +171,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${ROOTFS}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
-    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}"
+    COMMAND cd ${BUSYBOX} && make install CONFIG_PREFIX="${CMAKE_BINARY_DIR}/${ROOTFS}" CC="${UCLIBC_CC}"
     COMMAND cd ${ROOTFS} && ${CMAKE_COMMAND} -E make_directory dev
     DEPENDS ${BUSYBOX}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -188,7 +188,7 @@ add_custom_command(
 add_custom_command(
     OUTPUT ${KERNEL} ${KERNEL}.xz
     COMMAND ${CP} ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG} "${LINUX}/.config"
-    COMMAND cd ${LINUX} && ${CMAKE_MAKE_PROGRAM} all CC="${UCLIBC_CC}"
+    COMMAND cd ${LINUX} && make all CC="${UCLIBC_CC}"
     COMMAND ${CP} ${KERNEL_IMAGE} ${KERNEL}
     COMMAND ${CHMOD} +x ${KERNEL}
     COMMAND ${XZ} -z -c -9 ${KERNEL} > ${KERNEL}.xz
@@ -259,6 +259,6 @@ add_custom_target(totally-clean
 add_custom_target(check
     COMMAND ${CMAKE_COMMAND} -E echo "BUSYBOX: ${BUSYBOX}"
     COMMAND ${SUDO} ${DU} -sh ${ROOTFS}.tar.xz ${IMAGE_FILE}.xz
-    COMMAND cd ${BUSYBOX} && ${CMAKE_MAKE_PROGRAM} check
+    COMMAND cd ${BUSYBOX} && make check
     DEPENDS build_all
 )
