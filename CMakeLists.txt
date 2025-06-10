@@ -9,15 +9,36 @@
 cmake_minimum_required(VERSION 3.15)
 project(MLinux VERSION 0.1 LANGUAGES C)
 
-# Enable ccache if available
-find_program(CCACHE_FOUND ccache)
-if(CCACHE_FOUND)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE ccache)
-    set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
-    message(STATUS "Using ccache: ${CCACHE_FOUND}")
+# Find ccache early
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    # Configure ccache
+    set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+    
+    # Set environment variable for sub-make processes
+    set(ENV{CCACHE_DIR} "${CMAKE_BINARY_DIR}/.ccache")
+    set(ENV{CCACHE_COMPRESS} "1")
 else()
-    message(STATUS "Ccache not found. Compiling with cache will be disabled.")
+    message(STATUS "Ccache not found. Compiling without cache.")
 endif()
+
+# Set compiler wrapper
+if(CCACHE_PROGRAM)
+    set(COMPILER_WRAPPER "${CCACHE_PROGRAM}")
+else()
+    set(COMPILER_WRAPPER "")
+endif()
+
+# Set CC command with ccache
+set(CC_COMMAND "${COMPILER_WRAPPER} ${CMAKE_C_COMPILER}")
+
+# Add ccache stats target
+add_custom_target(ccache_stats
+    COMMAND ${CCACHE_PROGRAM} -s
+    COMMENT "Showing ccache statistics"
+)
 
 include(CMakeParseArguments)
 
@@ -101,7 +122,7 @@ set(SYSLINUX_CFG "syslinux.config")
 set(UCLIBC_CONFIG "uclibc.${ARCH}.config")
 
 # Set UCLIBC_CC before use
-set(UCLIBC_CC "${CC} -specs \"${CMAKE_BINARY_DIR}/uclibc.specs\" -fno-stack-protector")
+set(UCLIBC_CC "${CC_COMMAD} -specs \"${CMAKE_BINARY_DIR}/uclibc.specs\" -fno-stack-protector")
 
 # Configure mirrors and get URLs
 configure_file(
@@ -192,7 +213,7 @@ add_custom_command(
     
     # Build BusyBox (using properly escaped CC)
     COMMAND ${CMAKE_COMMAND} -E env 
-        "CC=${CC} -specs '${CMAKE_BINARY_DIR}/uclibc.specs' -fno-stack-protector"
+        "CC=${CC_COMMAD} -specs '${CMAKE_BINARY_DIR}/uclibc.specs' -fno-stack-protector"
         make -C "${CMAKE_BINARY_DIR}/${BUSYBOX}" all > "${CMAKE_BINARY_DIR}/busybox_build.log" 2>&1
     
     DEPENDS 
@@ -215,7 +236,7 @@ add_custom_command(
     
     # Install busybox with proper CC environment
     COMMAND ${CMAKE_COMMAND} -E env 
-        "CC=${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
+        "CC=${CC_COMMAD} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
         make -C "${CMAKE_BINARY_DIR}/${BUSYBOX}" 
         install 
         "CONFIG_PREFIX=${CMAKE_BINARY_DIR}/${ROOTFS}"
@@ -272,7 +293,7 @@ add_custom_command(
 )
 
 # Set environment variables at the top of CMakeLists.txt
-set(KERNEL_CC "${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector")
+set(KERNEL_CC "${CC_COMMAD} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector")
 
 # Add validation target for kernel build
 add_custom_target(validate_kernel
