@@ -1,0 +1,15 @@
+#!/bin/bash
+set -e
+
+# Set environment variables
+export CC="@KERNEL_CC@"
+export ARCH="@ARCH@"
+
+# Build the kernel
+cd "@CMAKE_BINARY_DIR@/@LINUX@"
+make all > "@CMAKE_BINARY_DIR@/kernel_build.log" 2>&1
+
+# Copy and prepare the kernel image
+cp "arch/@ARCH@/boot/bzImage" "@CMAKE_BINARY_DIR@/vmlinuz"
+chmod 755 "@CMAKE_BINARY_DIR@/vmlinuz"
+xz -z -c -9 "@CMAKE_BINARY_DIR@/vmlinuz" > "@CMAKE_BINARY_DIR@/vmlinuz.xz"

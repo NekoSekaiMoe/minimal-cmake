@@ -251,19 +251,20 @@ add_custom_command(
         "${CMAKE_BINARY_DIR}/${LINUX}/.config"
     
     # Build kernel with proper CC environment
-    COMMAND ${CMAKE_COMMAND} -E env 
+    COMMAND ${CMAKE_COMMAND} -E env
         "CC=${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
         "ARCH=${ARCH}"
-        make -C "${CMAKE_BINARY_DIR}/${LINUX}"
+        make
+        -C "${CMAKE_BINARY_DIR}/${LINUX}"
         all
         > "${CMAKE_BINARY_DIR}/kernel_build.log" 2>&1
     
-    # Copy and prepare kernel image
+    # Copy kernel image
     COMMAND ${CMAKE_COMMAND} -E copy
         "${CMAKE_BINARY_DIR}/${LINUX}/arch/${ARCH}/boot/bzImage"
         "${CMAKE_BINARY_DIR}/vmlinuz"
     
-    # Set permissions
+    # Set executable permission
     COMMAND ${CMAKE_COMMAND} -E chmod 755
         "${CMAKE_BINARY_DIR}/vmlinuz"
     
@@ -276,10 +277,20 @@ add_custom_command(
         ${CMAKE_BINARY_DIR}/${LINUX}
         ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}
         ${CMAKE_BINARY_DIR}/uclibc.specs
-        ${CMAKE_BINARY_DIR}/${INITRD_FILE}  # Need initrd file before building kernel
+        ${CMAKE_BINARY_DIR}/${INITRD_FILE}
     
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building Linux kernel"
+)
+
+# Set environment variables at the top of CMakeLists.txt
+set(KERNEL_CC "${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector")
+
+# Alternative approach using a shell script
+configure_file(
+    "${CMAKE_SOURCE_DIR}/scripts/build_kernel.sh.in"
+    "${CMAKE_BINARY_DIR}/build_kernel.sh"
+    @ONLY
 )
 
 # Add validation target for kernel build
