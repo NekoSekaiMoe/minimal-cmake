@@ -232,6 +232,13 @@ add_custom_command(
     COMMENT "Creating root filesystem"
 )
 
+# Alternative approach using a shell script
+configure_file(
+    "${CMAKE_SOURCE_DIR}/scripts/build_kernel.sh.in"
+    "${CMAKE_BINARY_DIR}/build_kernel.sh"
+    @ONLY
+)
+
 add_custom_command(
     OUTPUT ${INITRD_FILE}
     COMMAND cd ${ROOTFS} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > "${CMAKE_BINARY_DIR}/${INITRD_FILE}"
@@ -264,30 +271,8 @@ add_custom_command(
     COMMENT "Building Linux kernel"
 )
 
-# Add helper target for viewing kernel build logs
-add_custom_target(show_kernel_logs
-    COMMAND ${CMAKE_COMMAND} -E echo "=== Kernel Build Log ==="
-    COMMAND cat "${CMAKE_BINARY_DIR}/kernel_build.log"
-)
-
-# Add validation target
-add_custom_target(validate_kernel
-    COMMAND ${CMAKE_COMMAND} -E echo "Validating kernel build..."
-    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not found" && exit 1)
-    COMMAND test -x "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not executable" && exit 1)
-    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz.xz" || (echo "vmlinuz.xz not found" && exit 1)
-    DEPENDS ${CMAKE_BINARY_DIR}/vmlinuz ${CMAKE_BINARY_DIR}/vmlinuz.xz
-)
-
 # Set environment variables at the top of CMakeLists.txt
 set(KERNEL_CC "${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector")
-
-# Alternative approach using a shell script
-configure_file(
-    "${CMAKE_SOURCE_DIR}/scripts/build_kernel.sh.in"
-    "${CMAKE_BINARY_DIR}/build_kernel.sh"
-    @ONLY
-)
 
 # Add validation target for kernel build
 add_custom_target(validate_kernel
@@ -317,7 +302,7 @@ add_custom_command(
 # Create rootfs archive
 add_custom_command(
     OUTPUT ${ROOTFS}.tar
-    COMMAND ${TAR} -c -v -f ${ROOTFS}.tar ${ROOTFS}
+    COMMAND ${TAR} -cf ${ROOTFS}.tar ${ROOTFS}
     DEPENDS ${ROOTFS}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
