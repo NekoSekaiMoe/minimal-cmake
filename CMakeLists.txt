@@ -239,7 +239,7 @@ add_custom_command(
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-# Kernel build command
+# Kernel build command using shell script
 add_custom_command(
     OUTPUT 
         ${CMAKE_BINARY_DIR}/vmlinuz 
@@ -250,37 +250,33 @@ add_custom_command(
         "${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}"
         "${CMAKE_BINARY_DIR}/${LINUX}/.config"
     
-    # Build kernel with proper CC environment
-    COMMAND ${CMAKE_COMMAND} -E env
-        "CC=${CC} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
-        "ARCH=${ARCH}"
-        make
-        -C "${CMAKE_BINARY_DIR}/${LINUX}"
-        all
-        > "${CMAKE_BINARY_DIR}/kernel_build.log" 2>&1
-    
-    # Copy kernel image
-    COMMAND ${CMAKE_COMMAND} -E copy
-        "${CMAKE_BINARY_DIR}/${LINUX}/arch/${ARCH}/boot/bzImage"
-        "${CMAKE_BINARY_DIR}/vmlinuz"
-    
-    # Set executable permission
-    COMMAND ${CMAKE_COMMAND} -E chmod 755
-        "${CMAKE_BINARY_DIR}/vmlinuz"
-    
-    # Compress kernel
-    COMMAND ${XZ} -z -c -9 
-        "${CMAKE_BINARY_DIR}/vmlinuz" 
-        > "${CMAKE_BINARY_DIR}/vmlinuz.xz"
+    # Run build script
+    COMMAND bash "${CMAKE_BINARY_DIR}/build_kernel.sh"
     
     DEPENDS
         ${CMAKE_BINARY_DIR}/${LINUX}
         ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}
         ${CMAKE_BINARY_DIR}/uclibc.specs
         ${CMAKE_BINARY_DIR}/${INITRD_FILE}
+        ${CMAKE_BINARY_DIR}/build_kernel.sh
     
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building Linux kernel"
+)
+
+# Add helper target for viewing kernel build logs
+add_custom_target(show_kernel_logs
+    COMMAND ${CMAKE_COMMAND} -E echo "=== Kernel Build Log ==="
+    COMMAND cat "${CMAKE_BINARY_DIR}/kernel_build.log"
+)
+
+# Add validation target
+add_custom_target(validate_kernel
+    COMMAND ${CMAKE_COMMAND} -E echo "Validating kernel build..."
+    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not found" && exit 1)
+    COMMAND test -x "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not executable" && exit 1)
+    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz.xz" || (echo "vmlinuz.xz not found" && exit 1)
+    DEPENDS ${CMAKE_BINARY_DIR}/vmlinuz ${CMAKE_BINARY_DIR}/vmlinuz.xz
 )
 
 # Set environment variables at the top of CMakeLists.txt
