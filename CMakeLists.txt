@@ -1,53 +1,30 @@
-# Copyright (C) 2024-2025 ChenPi11 and dpkg123
-# This file is part of the MLinux.
-#
-# MLinux is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published
-# by the Free Software Foundation; either version 2 of the License,
-# or (at your option) any later version.
+cmake_minimum_required(VERSION 3.14)
+project(MLinux C)
 
-cmake_minimum_required(VERSION 3.15)
-project(MLinux VERSION 0.1 LANGUAGES C)
+# ==============================
+# 1. 用户可配置选项（替代 AC_ARG_WITH）
+# ==============================
 
-# Find ccache early
-find_program(CCACHE_PROGRAM ccache)
-if(CCACHE_PROGRAM)
-    # Configure ccache
-    set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
-    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
-    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
-    
-    # Set environment variable for sub-make processes
-    set(ENV{CCACHE_DIR} "${CMAKE_BINARY_DIR}/.ccache")
-    set(ENV{CCACHE_COMPRESS} "1")
-else()
-    message(STATUS "Ccache not found. Compiling without cache.")
-endif()
+# 版本
+set(BUSYBOX_VERSION "1.36.1" CACHE STRING "BusyBox version")
+set(LINUX_VERSION "6.7.9" CACHE STRING "Linux kernel version")
+set(UCLIBC_VERSION "0.9.33.2" CACHE STRING "uClibc version")
 
-# Set compiler wrapper
-if(CCACHE_PROGRAM)
-    set(COMPILER_WRAPPER "${CCACHE_PROGRAM}")
-else()
-    set(COMPILER_WRAPPER "")
-endif()
+# 镜像（支持 OFFICIAL/CDN/TSINGHUA/ALIYUN/USTC/自定义URL）
+set(LINUX_MIRROR "OFFICIAL" CACHE STRING "Linux mirror: OFFICIAL|CDN|TSINGHUA|ALIYUN|USTC|<URL>")
+set(BUSYBOX_MIRROR "OFFICIAL" CACHE STRING "BusyBox mirror: OFFICIAL|<URL>")
+set(UCLIBC_MIRROR "OFFICIAL" CACHE STRING "uClibc mirror: OFFICIAL|<URL>")
 
-# Set CC command with ccache
-set(CC_COMMAND "${COMPILER_WRAPPER} ${CMAKE_C_COMPILER}")
+# 架构
+set(ARCH "x86_64" CACHE STRING "Target architecture")
 
-# Add ccache stats target
-add_custom_target(ccache_stats
-    COMMAND ${CCACHE_PROGRAM} -s
-    COMMENT "Showing ccache statistics"
-)
+# ==============================
+# 2. 查找必要工具（替代 AC_PATH_PROG）
+# ==============================
 
-include(CMakeParseArguments)
-
-# Find required programs
-find_program(CC gcc REQUIRED)
 find_program(CHMOD chmod REQUIRED)
 find_program(CP cp REQUIRED)
 find_program(CPIO cpio REQUIRED)
-find_program(FDISK fdisk REQUIRED)
 find_program(FIND find REQUIRED)
 find_program(MKDIR mkdir REQUIRED)
 find_program(MKFS mkfs.fat REQUIRED)
@@ -64,309 +41,225 @@ find_program(WGET wget REQUIRED)
 find_program(XZ xz REQUIRED)
 find_program(DU du REQUIRED)
 
-# Version configurations
-set(BUSYBOX_VERSION "1.36.1" CACHE STRING "BusyBox version")
-set(LINUX_VERSION "6.7.9" CACHE STRING "Linux kernel version")
-string(REGEX REPLACE "([0-9]+)\\.[0-9]+\\.[0-9]+" "\\1" LINUX_VERSION_MAJOR ${LINUX_VERSION})
-set(UCLIBC_VERSION "0.9.33.2" CACHE STRING "µClibc version")
+# ==============================
+# 3. 衍生变量
+# ==============================
 
-# Mirror options with defaults
-set(MIRROR_OPTIONS "OFFICIAL;CDN;TSINGHUA;ALIYUN;USTC;CUSTOME")
-set(LINUX_MIRROR "OFFICIAL" CACHE STRING "Linux kernel mirror")
-set_property(CACHE LINUX_MIRROR PROPERTY STRINGS ${MIRROR_OPTIONS})
-set(LINUX_MIRROR_CUSTOME "" CACHE STRING "Custom Linux mirror URL")
-
-set(BUSYBOX_MIRROR "OFFICIAL" CACHE STRING "BusyBox mirror")
-set_property(CACHE BUSYBOX_MIRROR PROPERTY STRINGS "OFFICIAL;CUSTOME")
-set(BUSYBOX_MIRROR_CUSTOME "" CACHE STRING "Custom BusyBox mirror URL")
-
-set(UCLIBC_MIRROR "OFFICIAL" CACHE STRING "µClibc mirror")
-set_property(CACHE UCLIBC_MIRROR PROPERTY STRINGS "OFFICIAL;CUSTOME")
-set(UCLIBC_MIRROR_CUSTOME "" CACHE STRING "Custom µClibc mirror URL")
-
-# Architecture and configuration
-set(ARCH "x86_64" CACHE STRING "Target architecture")
-set(IMAGE_SIZE "6.1M" CACHE STRING "Disk image size")
-set(LINUX "linux-${LINUX_VERSION}")
-set(KERNEL_IMAGE "${LINUX}/arch/${ARCH}/boot/bzImage")
-
-# Set compiler flags
-set(CC_FLAGS "-fno-stack-protector")
-set(UCLIBC_SPECS "${CMAKE_BINARY_DIR}/uclibc.specs")
-
-# Function to check file exists
-function(ensure_file file)
-    if(NOT EXISTS "${file}")
-        message(FATAL_ERROR "Required file not found: ${file}")
-    endif()
-endfunction()
-
-# Validate required files
-ensure_file("${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}")
-
-# Derived variables
-set(PWD ${CMAKE_CURRENT_SOURCE_DIR})
-set(BUSYBOX "busybox-${BUSYBOX_VERSION}")
-set(LINUX "linux-${LINUX_VERSION}")
-set(UCLIBC "uClibc-${UCLIBC_VERSION}")
-set(KERNEL_IMAGE "${LINUX}/arch/${ARCH}/boot/bzImage")
+string(REGEX REPLACE "\\..*" "" LINUX_VERSION_MAJOR "${LINUX_VERSION}")
 set(UCLIBC_SYSROOT "${CMAKE_CURRENT_BINARY_DIR}/uclibc")
-set(BUSYBOX_CONFIG "busybox.${ARCH}.config")
-set(FS_DIR "fs")
-set(IMAGE_FILE "disk.img")
-set(INITRD_FILE "initrd.cpio")
-set(KERNEL "vmlinuz")
-set(LINUX_CONFIG "linux.${ARCH}.config")
-set(ROOTFS "rootfs")
-set(SYSLINUX_CFG "syslinux.config")
-set(UCLIBC_CONFIG "uclibc.${ARCH}.config")
 
-# Set UCLIBC_CC before use
-set(UCLIBC_CC "${CC_COMMAD} -specs \"${CMAKE_BINARY_DIR}/uclibc.specs\" -fno-stack-protector")
+# ==============================
+# 4. 生成配置文件
+# ==============================
 
-# Configure mirrors and get URLs
-configure_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/mirrors.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/mirrors.cmake
-    @ONLY
-)
-include(${CMAKE_CURRENT_BINARY_DIR}/mirrors.cmake)
-
-# Configure uClibc specs
+# 生成 uclibc.specs
 configure_file(
     ${CMAKE_CURRENT_SOURCE_DIR}/uclibc.specs.in
     ${CMAKE_CURRENT_BINARY_DIR}/uclibc.specs
     @ONLY
 )
 
-# Linux kernel source preparation
-add_custom_command(
-    OUTPUT ${LINUX}
-    COMMAND ${TAR} -xf ${LINUX}.tar.xz
-    DEPENDS ${LINUX}.tar.xz
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-add_custom_command(
-    OUTPUT ${LINUX}.tar.xz
-    COMMAND ${WGET} "${LINUX_URL}" -q -O ${LINUX}.tar.xz
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-# uClibc preparation and build
-add_custom_command(
-    OUTPUT ${UCLIBC}
-    COMMAND ${TAR} -xf ${UCLIBC}.tar.xz
-    DEPENDS ${UCLIBC}.tar.xz
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-add_custom_command(
-    OUTPUT ${UCLIBC}.tar.xz
-    COMMAND ${WGET} "${UCLIBC_URL}" -q -O ${UCLIBC}.tar.xz
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-# uClibc preparation and build
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/uclibc
-    COMMAND ${CMAKE_COMMAND} -E make_directory uclibc
-    # Fix: Added destination path for config file copy
-    COMMAND ${SED} -i "'s|114514|${CMAKE_BINARY_DIR}/uclibc/include|g'" "${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG}"
-    COMMAND ${CP} -f ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG} "${UCLIBC}/.config"
-    # Fix: Changed ninja to make since we're building uClibc
-    COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${CMAKE_BINARY_DIR}/uclibc" headers_install
-    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make all >log.txt 2>&1
-    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make install PREFIX="${CMAKE_BINARY_DIR}/uclibc" >log.txt 2>&1
-    DEPENDS ${UCLIBC} ${LINUX}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Building uClibc"
-)
-
-# BusyBox preparation and build
-add_custom_command(
-    OUTPUT ${BUSYBOX}.tar.bz2
-    COMMAND ${WGET} "${BUSYBOX_URL}" -q -O ${BUSYBOX}.tar.bz2
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-)
-
-# BusyBox preparation and build
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/${BUSYBOX}
-    # Extract BusyBox
-    COMMAND ${TAR} -xf ${BUSYBOX}.tar.bz2
-    
-    # Apply patches and config
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
-        "${CMAKE_SOURCE_DIR}/bb-patches/init.c" 
-        "${CMAKE_BINARY_DIR}/${BUSYBOX}/init/init.c"
-    
-    COMMAND ${PATCH} -p1 -i "${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch"
-        "${CMAKE_BINARY_DIR}/${BUSYBOX}/shell/hush.c"
-    
-    COMMAND ${PATCH} -p1 -i "${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch"
-        "${CMAKE_BINARY_DIR}/${BUSYBOX}/shell/match.c"
-    
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different 
-        "${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG}" 
-        "${CMAKE_BINARY_DIR}/${BUSYBOX}/.config"
-    
-    # Build BusyBox (using properly escaped CC)
-    COMMAND ${CMAKE_COMMAND} -E env 
-        "CC=${CC_COMMAD} -specs '${CMAKE_BINARY_DIR}/uclibc.specs' -fno-stack-protector"
-        make -C "${CMAKE_BINARY_DIR}/${BUSYBOX}" all > "${CMAKE_BINARY_DIR}/busybox_build.log" 2>&1
-    
-    DEPENDS 
-        ${CMAKE_BINARY_DIR}/${BUSYBOX}.tar.bz2
-        ${CMAKE_SOURCE_DIR}/bb-patches/init.c
-        ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
-        ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
-        ${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG}
-        ${CMAKE_BINARY_DIR}/uclibc.specs
-    
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Building BusyBox"
-)
-
-# Create rootfs directory and install busybox
-add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/${ROOTFS}
-    # Create rootfs directory
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${ROOTFS}
-    
-    # Install busybox with proper CC environment
-    COMMAND ${CMAKE_COMMAND} -E env 
-        "CC=${CC_COMMAD} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector"
-        make -C "${CMAKE_BINARY_DIR}/${BUSYBOX}" 
-        install 
-        "CONFIG_PREFIX=${CMAKE_BINARY_DIR}/${ROOTFS}"
-        > "${CMAKE_BINARY_DIR}/rootfs_install.log" 2>&1
-    
-    # Create necessary directories
-    COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_BINARY_DIR}/${ROOTFS}/dev"
-    
-    DEPENDS
-        ${CMAKE_BINARY_DIR}/${BUSYBOX}
-        ${CMAKE_BINARY_DIR}/uclibc.specs
-    
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Creating root filesystem"
-)
-
-# Alternative approach using a shell script
+# 生成 mirrors.cmake（用于内部逻辑）
 configure_file(
-    "${CMAKE_SOURCE_DIR}/scripts/build_kernel.sh.in"
-    "${CMAKE_BINARY_DIR}/build_kernel.sh"
+    ${CMAKE_CURRENT_SOURCE_DIR}/mirrors.cmake.in
+    ${CMAKE_CURRENT_BINARY_DIR}/mirrors.cmake
     @ONLY
 )
 
+# 加载镜像变量
+include(${CMAKE_CURRENT_BINARY_DIR}/mirrors.cmake)
+
+# ==============================
+# 5. 路径定义
+# ==============================
+
+set(BUSYBOX_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/busybox-${BUSYBOX_VERSION}")
+set(LINUX_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/linux-${LINUX_VERSION}")
+set(UCLIBC_SRC_DIR "${CMAKE_CURRENT_BINARY_DIR}/uClibc-${UCLIBC_VERSION}")
+set(ROOTFS_DIR "${CMAKE_CURRENT_BINARY_DIR}/rootfs")
+set(INITRD_FILE "${CMAKE_CURRENT_BINARY_DIR}/initrd.cpio")
+set(KERNEL_FILE "${CMAKE_CURRENT_BINARY_DIR}/vmlinuz")
+set(IMAGE_FILE "${CMAKE_CURRENT_BINARY_DIR}/disk.img")
+
+# ==============================
+# 6. 构建步骤（自定义命令）
+# ==============================
+
+# --- 下载并解压 uClibc ---
 add_custom_command(
-    OUTPUT ${INITRD_FILE}
-    COMMAND cd ${ROOTFS} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > "${CMAKE_BINARY_DIR}/${INITRD_FILE}"
-    DEPENDS ${ROOTFS}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    OUTPUT ${UCLIBC_SRC_DIR}/.extracted
+    COMMAND ${WGET} "${UCLIBC_URL}" -O ${UCLIBC_SRC_DIR}.tar.xz
+    COMMAND ${TAR} -xf ${UCLIBC_SRC_DIR}.tar.xz
+    COMMAND ${CMAKE_COMMAND} -E touch ${UCLIBC_SRC_DIR}/.extracted
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${WGET} ${TAR}
+    COMMENT "Downloading and extracting uClibc"
 )
 
-# Kernel build command using shell script
+# --- 下载并解压 BusyBox ---
 add_custom_command(
-    OUTPUT 
-        ${CMAKE_BINARY_DIR}/vmlinuz 
-        ${CMAKE_BINARY_DIR}/vmlinuz.xz
-    
-    # Copy kernel config
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        "${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}"
-        "${CMAKE_BINARY_DIR}/${LINUX}/.config"
-    
-    # Run build script
-    COMMAND bash "${CMAKE_BINARY_DIR}/build_kernel.sh"
-    
-    DEPENDS
-        ${CMAKE_BINARY_DIR}/${LINUX}
-        ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}
-        ${CMAKE_BINARY_DIR}/uclibc.specs
-        ${CMAKE_BINARY_DIR}/${INITRD_FILE}
-        ${CMAKE_BINARY_DIR}/build_kernel.sh
-    
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    OUTPUT ${BUSYBOX_SRC_DIR}/.extracted
+    COMMAND ${WGET} "${BUSYBOX_URL}" -O ${BUSYBOX_SRC_DIR}.tar.bz2
+    COMMAND ${TAR} -xf ${BUSYBOX_SRC_DIR}.tar.bz2
+    COMMAND ${CMAKE_COMMAND} -E touch ${BUSYBOX_SRC_DIR}/.extracted
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${WGET} ${TAR}
+    COMMENT "Downloading and extracting BusyBox"
+)
+
+# --- 打补丁 ---
+add_custom_command(
+    OUTPUT ${BUSYBOX_SRC_DIR}/.patched
+    COMMAND ${CP} ${CMAKE_CURRENT_SOURCE_DIR}/bb-patches/init.c ${BUSYBOX_SRC_DIR}/init/init.c
+    COMMAND ${PATCH} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/bb-patches/hush.c.patch
+    COMMAND ${PATCH} -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/bb-patches/match.c.patch
+    COMMAND ${CMAKE_COMMAND} -E touch ${BUSYBOX_SRC_DIR}/.patched
+    WORKING_DIRECTORY ${BUSYBOX_SRC_DIR}
+    DEPENDS ${BUSYBOX_SRC_DIR}/.extracted ${PATCH} ${CP}
+)
+
+# --- 下载并解压 Linux ---
+add_custom_command(
+    OUTPUT ${LINUX_SRC_DIR}/.extracted
+    COMMAND ${WGET} "${LINUX_URL}" -O ${LINUX_SRC_DIR}.tar.xz
+    COMMAND ${TAR} -xf ${LINUX_SRC_DIR}.tar.xz
+    COMMAND ${CMAKE_COMMAND} -E touch ${LINUX_SRC_DIR}/.extracted
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    DEPENDS ${WGET} ${TAR}
+    COMMENT "Downloading and extracting Linux kernel"
+)
+
+# --- 构建 uClibc ---
+add_custom_command(
+    OUTPUT ${UCLIBC_SYSROOT}/lib/libc.a
+    COMMAND ${MKDIR} -p ${UCLIBC_SYSROOT}
+    COMMAND ${CP} ${CMAKE_CURRENT_SOURCE_DIR}/uclibc.${ARCH}.config ${UCLIBC_SRC_DIR}/.config
+    COMMAND ${SED} -i "s|@KERNEL_HEADERS@|${UCLIBC_SYSROOT}/include|g" ${UCLIBC_SRC_DIR}/.config
+    COMMAND cd ${LINUX_SRC_DIR} && CC=false make ARCH=${ARCH} INSTALL_HDR_PATH=${UCLIBC_SYSROOT} headers_install
+    COMMAND cd ${UCLIBC_SRC_DIR} && make -j$(nproc) all
+    COMMAND cd ${UCLIBC_SRC_DIR} && make install PREFIX=${UCLIBC_SYSROOT}
+    DEPENDS ${UCLIBC_SRC_DIR}/.extracted ${LINUX_SRC_DIR}/.extracted
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Building uClibc"
+)
+
+# --- 构建 BusyBox ---
+add_custom_command(
+    OUTPUT ${BUSYBOX_SRC_DIR}/busybox
+    COMMAND ${CP} ${CMAKE_CURRENT_SOURCE_DIR}/busybox.${ARCH}.config ${BUSYBOX_SRC_DIR}/.config
+    COMMAND cd ${BUSYBOX_SRC_DIR} && make -j$(nproc) all CC="${CMAKE_C_COMPILER} -specs ${CMAKE_CURRENT_BINARY_DIR}/uclibc.specs -fno-stack-protector"
+    DEPENDS ${BUSYBOX_SRC_DIR}/.patched ${UCLIBC_SYSROOT}/lib/libc.a
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Building BusyBox"
+)
+
+# --- 安装到 rootfs ---
+add_custom_command(
+    OUTPUT ${ROOTFS_DIR}/bin/busybox
+    COMMAND ${MKDIR} -p ${ROOTFS_DIR}
+    COMMAND cd ${BUSYBOX_SRC_DIR} && make install CONFIG_PREFIX=${ROOTFS_DIR} CC="${CMAKE_C_COMPILER} -specs ${CMAKE_CURRENT_BINARY_DIR}/uclibc.specs -fno-stack-protector"
+    COMMAND ${MKDIR} -p ${ROOTFS_DIR}/dev
+    DEPENDS ${BUSYBOX_SRC_DIR}/busybox
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Installing BusyBox to rootfs"
+)
+
+# --- 生成 initrd ---
+add_custom_command(
+    OUTPUT ${INITRD_FILE}
+    COMMAND cd ${ROOTFS_DIR} && ${FIND} . | ${CPIO} -H newc -o -v --owner root:root > ${INITRD_FILE}
+    DEPENDS ${ROOTFS_DIR}/bin/busybox
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Creating initrd"
+)
+
+# --- 构建 Linux 内核 ---
+add_custom_command(
+    OUTPUT ${KERNEL_FILE}
+    COMMAND ${CP} ${CMAKE_CURRENT_SOURCE_DIR}/linux.${ARCH}.config ${LINUX_SRC_DIR}/.config
+    COMMAND cd ${LINUX_SRC_DIR} && make -j$(nproc) all CC="${CMAKE_C_COMPILER} -specs ${CMAKE_CURRENT_BINARY_DIR}/uclibc.specs -fno-stack-protector"
+    COMMAND ${CP} ${LINUX_SRC_DIR}/arch/${ARCH}/boot/bzImage ${KERNEL_FILE}
+    COMMAND ${CHMOD} +x ${KERNEL_FILE}
+    DEPENDS ${LINUX_SRC_DIR}/.extracted ${INITRD_FILE}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
     COMMENT "Building Linux kernel"
 )
 
-# Set environment variables at the top of CMakeLists.txt
-set(KERNEL_CC "${CC_COMMAD} -specs ${CMAKE_BINARY_DIR}/uclibc.specs -fno-stack-protector")
-
-# Add validation target for kernel build
-add_custom_target(validate_kernel
-    COMMAND ${CMAKE_COMMAND} -E echo "Validating kernel build..."
-    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not found" && exit 1)
-    COMMAND test -x "${CMAKE_BINARY_DIR}/vmlinuz" || (echo "vmlinuz not executable" && exit 1)
-    COMMAND test -f "${CMAKE_BINARY_DIR}/vmlinuz.xz" || (echo "vmlinuz.xz not found" && exit 1)
-    DEPENDS ${CMAKE_BINARY_DIR}/vmlinuz ${CMAKE_BINARY_DIR}/vmlinuz.xz
-)
-
-# Disk image creation
+# --- 生成可启动镜像 ---
 add_custom_command(
-    OUTPUT ${IMAGE_FILE} ${IMAGE_FILE}.xz
-    COMMAND ${QEMU_IMG} create -f raw ${IMAGE_FILE} ${IMAGE_SIZE}
+    OUTPUT ${IMAGE_FILE}
+    COMMAND ${QEMU_IMG} create -f raw ${IMAGE_FILE} 6.1M
     COMMAND ${MKFS} ${IMAGE_FILE}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${FS_DIR}
-    COMMAND ${SUDO} ${MOUNT} ${IMAGE_FILE} ${FS_DIR}
-    COMMAND ${SUDO} ${CP} -f ${KERNEL} "${FS_DIR}/${KERNEL}"
-    COMMAND ${SUDO} ${CP} -f ${CMAKE_SOURCE_DIR}/${SYSLINUX_CFG} "${FS_DIR}/syslinux.cfg"
-    COMMAND ${SUDO} ${UMOUNT} ${FS_DIR}
+    COMMAND ${MKDIR} -p ${CMAKE_CURRENT_BINARY_DIR}/fs
+    COMMAND ${SUDO} ${MOUNT} ${IMAGE_FILE} ${CMAKE_CURRENT_BINARY_DIR}/fs
+    COMMAND ${SUDO} ${CP} ${KERNEL_FILE} ${CMAKE_CURRENT_BINARY_DIR}/fs/vmlinuz
+    COMMAND ${SUDO} ${CP} ${CMAKE_CURRENT_SOURCE_DIR}/syslinux.config ${CMAKE_CURRENT_BINARY_DIR}/fs/syslinux.cfg
+    COMMAND ${SUDO} ${UMOUNT} ${CMAKE_CURRENT_BINARY_DIR}/fs || true
     COMMAND ${SYSLINUX} --install ${IMAGE_FILE}
+    DEPENDS ${KERNEL_FILE} ${SYSLINUX}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+    COMMENT "Creating bootable disk image"
+)
+
+# ==============================
+# 7. 最终目标
+# ==============================
+
+add_custom_target(all
+    DEPENDS
+        ${ROOTFS_DIR}/bin/busybox
+        ${KERNEL_FILE}
+        ${IMAGE_FILE}
+)
+
+# 压缩产物（可选）
+add_custom_command(
+    OUTPUT ${ROOTFS_DIR}.tar.xz
+    COMMAND ${TAR} -c -f ${ROOTFS_DIR}.tar -C ${CMAKE_CURRENT_BINARY_DIR} rootfs
+    COMMAND ${XZ} -z -c -9 ${ROOTFS_DIR}.tar > ${ROOTFS_DIR}.tar.xz
+    DEPENDS ${ROOTFS_DIR}/bin/busybox
+)
+
+add_custom_command(
+    OUTPUT ${IMAGE_FILE}.xz
     COMMAND ${XZ} -z -c -9 ${IMAGE_FILE} > ${IMAGE_FILE}.xz
-    DEPENDS ${KERNEL}.xz
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    DEPENDS ${IMAGE_FILE}
 )
 
-# Create rootfs archive
-add_custom_command(
-    OUTPUT ${ROOTFS}.tar
-    COMMAND ${TAR} -cf ${ROOTFS}.tar ${ROOTFS}
-    DEPENDS ${ROOTFS}
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+add_custom_target(compressed
+    DEPENDS ${ROOTFS_DIR}.tar.xz ${IMAGE_FILE}.xz
 )
 
-add_custom_command(
-    OUTPUT ${ROOTFS}.tar.xz
-    COMMAND ${XZ} -z -c -9 ${ROOTFS}.tar > ${ROOTFS}.tar.xz
-    DEPENDS ${ROOTFS}.tar
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+# ==============================
+# 8. 清理目标
+# ==============================
+
+add_custom_target(clean
+    COMMAND ${RM} -rf
+        ${UCLIBC_SRC_DIR}
+        uclibc
+        ${BUSYBOX_SRC_DIR}
+        ${LINUX_SRC_DIR}
+        ${ROOTFS_DIR}
+        ${ROOTFS_DIR}.tar
+        ${ROOTFS_DIR}.tar.xz
+        ${INITRD_FILE}
+        ${KERNEL_FILE}
+        ${KERNEL_FILE}.xz
+        ${IMAGE_FILE}
+        ${IMAGE_FILE}.xz
+        fs
+    COMMENT "Cleaning build artifacts"
 )
 
-# Main build target
-add_custom_target(build_all ALL
-    DEPENDS ${ROOTFS}.tar.xz ${KERNEL}.xz ${IMAGE_FILE}.xz
-)
+# ==============================
+# 9. 检查目标（类似原 check）
+# ==============================
 
-# Clean targets
-add_custom_target(distclean
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/${UCLIBC}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/uclibc
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/${BUSYBOX}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/${LINUX}
-    COMMAND ${CMAKE_COMMAND} -E remove_directory ${CMAKE_BINARY_DIR}/${ROOTFS}
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${ROOTFS}.tar
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${ROOTFS}.tar.xz
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${INITRD_FILE}
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${KERNEL}
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${KERNEL}.xz
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${IMAGE_FILE}
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${IMAGE_FILE}.xz
-)
-
-add_custom_target(totally-clean
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/uclibc.specs
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${BUSYBOX}.tar.bz2
-    COMMAND ${CMAKE_COMMAND} -E remove -f ${CMAKE_BINARY_DIR}/${LINUX}.tar.xz
-    DEPENDS distclean
-)
-
-# Check target
 add_custom_target(check
-    COMMAND ${CMAKE_COMMAND} -E echo "BUSYBOX: ${BUSYBOX}"
-    COMMAND ${SUDO} ${DU} -sh ${ROOTFS}.tar.xz ${IMAGE_FILE}.xz
-    COMMAND cd ${BUSYBOX} && make check
-    DEPENDS build_all
+    DEPENDS all
+    COMMAND echo "BUSYBOX: busybox-${BUSYBOX_VERSION}"
+    COMMAND ${SUDO} ${DU} -sh ${ROOTFS_DIR}.tar.xz ${IMAGE_FILE}.xz
+    COMMAND cd ${BUSYBOX_SRC_DIR} && make check
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
 )
