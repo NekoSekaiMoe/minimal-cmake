@@ -78,7 +78,7 @@ set(UCLIBC "uClibc-${UCLIBC_VERSION}")
 
 set(BUSYBOX_CONFIG "busybox.${ARCH}.config")
 set(LINUX_CONFIG "linux.${ARCH}.config")
-set(UCLIBC_CONFIG "uclibc.${ARCH}.config")
+set(UCLIBC_CONFIG "uclibc.${ARCH}.config.in")
 
 set(ROOTFS "${CMAKE_BINARY_DIR}/rootfs")
 set(INITRD_FILE "${CMAKE_BINARY_DIR}/initrd.cpio")
