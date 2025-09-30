@@ -162,21 +162,13 @@ add_custom_command(
 )
 
 add_custom_command(
-    OUTPUT ${CMAKE_BINARY_DIR}/${BUSYBOX}/.patched
+    OUTPUT ${CMAKE_BINARY_DIR}/${BUSYBOX}
     COMMAND ${TAR} -xf ${BUSYBOX}.tar.bz2
-
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/bb-patches/init.c
         ${CMAKE_BINARY_DIR}/${BUSYBOX}/init/init.c
-
-    # 在 BusyBox 源码目录下打补丁
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} &&
-            ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
-
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} &&
-            ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
-
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_BINARY_DIR}/${BUSYBOX}/.patched
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
     DEPENDS ${BUSYBOX}.tar.bz2
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Patching Busybox"
