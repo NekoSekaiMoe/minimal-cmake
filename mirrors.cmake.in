@@ -1,6 +1,3 @@
-# Mirrors for Linux, BusyBox, and µClibc
-# Generated from mirrors.cmake.in by CMake
-
 # Linux kernel mirrors
 set(LINUX_MIRROR_OFFICIAL "https://www.kernel.org/pub/linux/kernel")
 set(LINUX_MIRROR_CDN "https://cdn.kernel.org/pub/linux/kernel")
@@ -9,47 +6,50 @@ set(LINUX_MIRROR_ALIYUN "https://mirrors.aliyun.com/linux-kernel")
 set(LINUX_MIRROR_USTC "https://mirrors.ustc.edu.cn/kernel.org/linux/kernel")
 set(LINUX_MIRROR_CUSTOME "@LINUX_MIRROR_CUSTOME@")
 
-# BusyB/cox mirrors
+# BusyBox
 set(BUSYBOX_MIRROR_OFFICIAL "https://busybox.net/downloads")
 set(BUSYBOX_MIRROR_CUSTOME "@BUSYBOX_MIRROR_CUSTOME@")
 
-# µClibc mirrors
+# µClibc
 set(UCLIBC_MIRROR_OFFICIAL "https://uclibc.org/downloads")
 set(UCLIBC_MIRROR_CUSTOME "@UCLIBC_MIRROR_CUSTOME@")
 
-# Resolve actual mirror URLs based on selected mirror name
-
-# Linux
+# Resolve Linux mirror
 if("@LINUX_MIRROR@" STREQUAL "OFFICIAL")
-    set(LINUX_MIRROR ${LINUX_MIRROR_OFFICIAL})
+    set(LINUX_MIRROR_URL ${LINUX_MIRROR_OFFICIAL})
 elseif("@LINUX_MIRROR@" STREQUAL "CDN")
-    set(LINUX_MIRROR ${LINUX_MIRROR_CDN})
+    set(LINUX_MIRROR_URL ${LINUX_MIRROR_CDN})
 elseif("@LINUX_MIRROR@" STREQUAL "TSINGHUA")
-    set(LINUX_MIRROR ${LINUX_MIRROR_TSINGHUA})
+    set(LINUX_MIRROR_URL ${LINUX_MIRROR_TSINGHUA})
 elseif("@LINUX_MIRROR@" STREQUAL "ALIYUN")
-    set(LINUX_MIRROR ${LINUX_MIRROR_ALIYUN})
+    set(LINUX_MIRROR_URL ${LINUX_MIRROR_ALIYUN})
 elseif("@LINUX_MIRROR@" STREQUAL "USTC")
-    set(LINUX_MIRROR ${LINUX_MIRROR_USTC})
+    set(LINUX_MIRROR_URL ${LINUX_MIRROR_USTC})
 elseif("@LINUX_MIRROR@" STREQUAL "CUSTOME")
-    set(LINUX_MIRROR ${LINUX_MIRROR_CUSTOME})
+    set(LINUX_MIRROR_URL ${LINUX_MIRROR_CUSTOME})
 else()
-    message(FATAL_ERROR "Unknown Linux mirror: @LINUX_MIRROR@")
+    message(FATAL_ERROR "Invalid LINUX_MIRROR: @LINUX_MIRROR@")
 endif()
 
-# BusyBox
+# Resolve BusyBox mirror
 if("@BUSYBOX_MIRROR@" STREQUAL "OFFICIAL")
-    set(BUSYBOX_MIRROR ${BUSYBOX_MIRROR_OFFICIAL})
+    set(BUSYBOX_MIRROR_URL ${BUSYBOX_MIRROR_OFFICIAL})
 elseif("@BUSYBOX_MIRROR@" STREQUAL "CUSTOME")
-    set(BUSYBOX_MIRROR ${BUSYBOX_MIRROR_CUSTOME})
+    set(BUSYBOX_MIRROR_URL ${BUSYBOX_MIRROR_CUSTOME})
 else()
-    message(FATAL_ERROR "Unknown BusyBox mirror: @BUSYBOX_MIRROR@")
+    message(FATAL_ERROR "Invalid BUSYBOX_MIRROR: @BUSYBOX_MIRROR@")
 endif()
 
-# µClibc
+# Resolve µClibc mirror
 if("@UCLIBC_MIRROR@" STREQUAL "OFFICIAL")
-    set(UCLIBC_MIRROR ${UCLIBC_MIRROR_OFFICIAL})
+    set(UCLIBC_MIRROR_URL ${UCLIBC_MIRROR_OFFICIAL})
 elseif("@UCLIBC_MIRROR@" STREQUAL "CUSTOME")
-    set(UCLIBC_MIRROR ${UCLIBC_MIRROR_CUSTOME})
+    set(UCLIBC_MIRROR_URL ${UCLIBC_MIRROR_CUSTOME})
 else()
-    message(FATAL_ERROR "Unknown µClibc mirror: @UCLIBC_MIRROR@")
+    message(FATAL_ERROR "Invalid UCLIBC_MIRROR: @UCLIBC_MIRROR@")
 endif()
+
+# Construct final URLs
+set(LINUX_URL "${LINUX_MIRROR_URL}/v@LINUX_VERSION_MAJOR@.x/linux-@LINUX_VERSION@.tar.xz")
+set(BUSYBOX_URL "${BUSYBOX_MIRROR_URL}/busybox-@BUSYBOX_VERSION@.tar.bz2")
+set(UCLIBC_URL "${UCLIBC_MIRROR_URL}/uClibc-@UCLIBC_VERSION@.tar.xz")
