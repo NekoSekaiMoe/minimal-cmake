@@ -16,7 +16,7 @@ jobs:
       uses: actions/checkout@v4
     - name: Collect dependencies
       run: |
-        sudovapt-get update && sudo apt-get install patch gcc cpio xz-utils gawk make grep qemu-utils sed util-linux wget binutils libelf-dev libssl-dev bc flex bison rsync dosfstools gcc cpio xz-utils gawk syslinux make grep qemu-utils sed util-linux ccache icecc distcc wget binutils libelf-dev libssl-dev bc flex bison rsync cmake ninja-build -y
+        sudo apt-get update && sudo apt-get install patch gcc cpio xz-utils gawk make grep qemu-utils sed util-linux wget binutils libelf-dev libssl-dev bc flex bison rsync dosfstools gcc cpio xz-utils gawk syslinux make grep qemu-utils sed util-linux ccache icecc distcc wget binutils libelf-dev libssl-dev bc flex bison rsync cmake ninja-build -y
     #--------------------------------------------build--------------------------------------------
     
     - name: ccache
