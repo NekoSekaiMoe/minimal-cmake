@@ -35,7 +35,6 @@ find_program(MOUNT mount REQUIRED)
 find_program(PATCH patch REQUIRED)
 find_program(QEMU_IMG qemu-img REQUIRED)
 find_program(RM rm REQUIRED)
-find_program(SED sed REQUIRED)
 find_program(SUDO sudo REQUIRED)
 find_program(SYSLINUX syslinux REQUIRED)
 find_program(TAR tar REQUIRED)
@@ -177,18 +176,21 @@ add_custom_command(
 # ==============================
 # Build uClibc
 # ==============================
+set(KERNEL_HEADERS "${UCLIBC_SYSROOT}/include")
+configure_file(
+    ${CMAKE_SOURCE_DIR}/uclibc.${ARCH}.config.in
+    ${CMAKE_BINARY_DIR}/${UCLIBC}/.config
+    @ONLY
+)
+
+# 然后在 uClibc 构建命令中直接使用这个 .config
 add_custom_command(
     OUTPUT ${UCLIBC_SYSROOT}/lib/libc.a
     COMMAND ${MKDIR} -p ${UCLIBC_SYSROOT}
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${CMAKE_SOURCE_DIR}/${UCLIBC_CONFIG}
-        ${CMAKE_BINARY_DIR}/${UCLIBC}/.config.tmp
-    COMMAND ${SED} "s|@KERNEL_HEADERS@|${UCLIBC_SYSROOT}/include|g"
-        ${CMAKE_BINARY_DIR}/${UCLIBC}/.config.tmp > ${CMAKE_BINARY_DIR}/${UCLIBC}/.config
     COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${UCLIBC_SYSROOT}" headers_install
     COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make -j${CMAKE_BUILD_PARALLEL_LEVEL} all
     COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make install PREFIX=${UCLIBC_SYSROOT}
-    DEPENDS ${UCLIBC} ${LINUX}
+    DEPENDS ${UCLIBC} ${LINUX} ${CMAKE_BINARY_DIR}/${UCLIBC}/.config
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building uClibc"
 )
