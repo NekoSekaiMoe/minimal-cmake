@@ -169,8 +169,8 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/bb-patches/init.c
         ${CMAKE_BINARY_DIR}/${BUSYBOX}/init/init.c
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p0 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p0 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p0 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch >log.txt
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p0 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch >log.txt
     DEPENDS ${BUSYBOX}.tar.bz2
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Patching Busybox"
@@ -190,9 +190,9 @@ configure_file(
 add_custom_command(
     OUTPUT ${UCLIBC_SYSROOT}/lib/libc.a
     COMMAND ${MKDIR} -p ${UCLIBC_SYSROOT}
-    COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${UCLIBC_SYSROOT}" headers_install
-    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make -j${CMAKE_BUILD_PARALLEL_LEVEL} all
-    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make install PREFIX=${UCLIBC_SYSROOT}
+    COMMAND cd ${CMAKE_BINARY_DIR}/${LINUX} && CC=false make ARCH=${ARCH} "INSTALL_HDR_PATH=${UCLIBC_SYSROOT}" headers_install >log.txt
+    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make -j${CMAKE_BUILD_PARALLEL_LEVEL} all >log.txt
+    COMMAND cd ${CMAKE_BINARY_DIR}/${UCLIBC} && make install PREFIX=${UCLIBC_SYSROOT} >log.txt
     DEPENDS ${UCLIBC} ${LINUX} ${CMAKE_BINARY_DIR}/${UCLIBC}/.config
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building uClibc"
@@ -209,7 +209,7 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/${BUSYBOX_CONFIG}
         ${CMAKE_BINARY_DIR}/${BUSYBOX}/.config
     COMMAND ${CMAKE_COMMAND} -E env "CC=${BUSYBOX_CC}"
-        make -C ${BUSYBOX} -j${CMAKE_BUILD_PARALLEL_LEVEL} all
+        make -C ${BUSYBOX} -j${CMAKE_BUILD_PARALLEL_LEVEL} all >log.txt
     DEPENDS ${BUSYBOX} ${UCLIBC_SYSROOT}/lib/libc.a
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Building BusyBox"
@@ -222,7 +222,7 @@ add_custom_command(
     OUTPUT ${ROOTFS}/bin/busybox
     COMMAND ${MKDIR} -p ${ROOTFS}
     COMMAND ${CMAKE_COMMAND} -E env "CC=${BUSYBOX_CC}"
-        make -C ${BUSYBOX} install "CONFIG_PREFIX=${ROOTFS}"
+        make -C ${BUSYBOX} install "CONFIG_PREFIX=${ROOTFS}" >log.txt
     COMMAND ${MKDIR} -p ${ROOTFS}/dev
     DEPENDS ${BUSYBOX}/busybox
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
@@ -250,7 +250,7 @@ add_custom_command(
         ${CMAKE_SOURCE_DIR}/${LINUX_CONFIG}
         ${CMAKE_BINARY_DIR}/${LINUX}/.config
     COMMAND ${CMAKE_COMMAND} -E env "CC=${KERNEL_CC}"
-        make -C ${LINUX} -j${CMAKE_BUILD_PARALLEL_LEVEL} all
+        make -C ${LINUX} -j${CMAKE_BUILD_PARALLEL_LEVEL} all >log.txt
     COMMAND ${CP} ${CMAKE_BINARY_DIR}/${LINUX}/arch/${ARCH}/boot/bzImage ${KERNEL_FILE}
     COMMAND ${CHMOD} +x ${KERNEL_FILE}
     DEPENDS ${LINUX} ${INITRD_FILE}
@@ -263,14 +263,14 @@ add_custom_command(
 # ==============================
 add_custom_command(
     OUTPUT ${IMAGE_FILE}
-    COMMAND ${QEMU_IMG} create -f raw ${IMAGE_FILE} ${IMAGE_SIZE}
-    COMMAND ${MKFS} ${IMAGE_FILE}
+    COMMAND ${QEMU_IMG} create -f raw ${IMAGE_FILE} ${IMAGE_SIZE} >log.txt
+    COMMAND ${MKFS} ${IMAGE_FILE} >log.txt
     COMMAND ${MKDIR} -p ${FS_DIR}
     COMMAND ${SUDO} ${MOUNT} ${IMAGE_FILE} ${FS_DIR}
     COMMAND ${SUDO} ${CP} ${KERNEL_FILE} ${FS_DIR}/vmlinuz
     COMMAND ${SUDO} ${CP} ${CMAKE_SOURCE_DIR}/${SYSLINUX_CFG} ${FS_DIR}/syslinux.cfg
     COMMAND ${SUDO} ${UMOUNT} ${FS_DIR} || true
-    COMMAND ${SYSLINUX} --install ${IMAGE_FILE}
+    COMMAND ${SYSLINUX} --install ${IMAGE_FILE} >log.txt
     DEPENDS ${KERNEL_FILE}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Creating bootable disk image"
@@ -285,6 +285,7 @@ add_custom_command(
     COMMAND ${XZ} -z -c -9 ${ROOTFS}.tar > ${ROOTFS}.tar.xz
     DEPENDS ${ROOTFS}/bin/busybox
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Compressing rootfs"
 )
 
 add_custom_command(
@@ -292,6 +293,7 @@ add_custom_command(
     COMMAND ${XZ} -z -c -9 ${IMAGE_FILE} > ${IMAGE_FILE}.xz
     DEPENDS ${IMAGE_FILE}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Compressing image"
 )
 
 # ==============================
@@ -306,6 +308,7 @@ add_custom_target(check
     COMMAND ${SUDO} ${DU} -sh ${ROOTFS}.tar.xz ${IMAGE_FILE}.xz
     COMMAND cd ${BUSYBOX} && make check
     DEPENDS all
+    COMMENT "Checking image"
 )
 
 add_custom_target(dryclean
@@ -317,6 +320,7 @@ add_custom_target(dryclean
         ${IMAGE_FILE} ${IMAGE_FILE}.xz
         ${FS_DIR}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running dryclean"
 )
 
 if(CCACHE_PROGRAM)
