@@ -1,4 +1,4 @@
-# Copyright (C) 2024-2025 ChenPi11 and dpkg123
+# Copyright (C) 2025 ChenPi11
 # This file is part of the MLinux.
 #
 # MLinux is free software: you can redistribute it and/or modify
@@ -138,6 +138,7 @@ add_custom_command(
     COMMAND ${TAR} -xf ${LINUX}.tar.xz
     DEPENDS ${LINUX}.tar.xz
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Extraxting Linux kernel"
 )
 
 add_custom_command(
@@ -152,6 +153,7 @@ add_custom_command(
     COMMAND ${TAR} -xf ${UCLIBC}.tar.xz
     DEPENDS ${UCLIBC}.tar.xz
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Extracting uClibc"
 )
 
 add_custom_command(
@@ -167,8 +169,8 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/bb-patches/init.c
         ${CMAKE_BINARY_DIR}/${BUSYBOX}/init/init.c
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX} && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
     DEPENDS ${BUSYBOX}.tar.bz2
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Patching Busybox"
