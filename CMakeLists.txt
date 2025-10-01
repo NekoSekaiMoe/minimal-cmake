@@ -169,8 +169,8 @@ add_custom_command(
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         ${CMAKE_SOURCE_DIR}/bb-patches/init.c
         ${CMAKE_BINARY_DIR}/${BUSYBOX}/init/init.c
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
-    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p1 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p0 < ${CMAKE_SOURCE_DIR}/bb-patches/hush.c.patch
+    COMMAND cd ${CMAKE_BINARY_DIR}/${BUSYBOX}/shell && ${PATCH} -p0 < ${CMAKE_SOURCE_DIR}/bb-patches/match.c.patch
     DEPENDS ${BUSYBOX}.tar.bz2
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Patching Busybox"
